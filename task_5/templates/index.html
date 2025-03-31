@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Control Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .btn { padding: 10px 20px; margin: 5px; cursor: pointer; font-size: 16px; }
+        .loading { opacity: 0.6; pointer-events: none; }
+        #status { font-weight: bold; margin-top: 10px; }
+        #map { height: 300px; width: 80%; margin: auto; border-radius: 10px; }
+        .info-box { border: 1px solid #ddd; padding: 10px; display: inline-block; margin-top: 10px; }
+        .input-container { margin: 10px; }
+        input { padding: 5px; margin: 5px; width: 150px; }
+    </style>
+</head>
+<body>
+    <h1>Drone Control Dashboard</h1>
+
+    <div class="input-container">
+        <label for="altitude">Altitude (m):</label>
+        <input type="number" id="altitude" placeholder="Inserisci altitudine">
+        <br>
+        <label for="latitude">Latitude:</label>
+        <input type="number" id="latitude" placeholder="Inserisci latitudine" step="any">
+        <br>
+        <label for="longitude">Longitude:</label>
+        <input type="number" id="longitude" placeholder="Inserisci longitudine" step="any">
+    </div>
+
+    <button class="btn" onclick="sendCommand('arm', this)">Arm</button>
+    <button class="btn" onclick="sendCommand('takeoff', this)">Takeoff</button>
+    <button class="btn" onclick="sendCommand('land', this)">Land</button>
+    <button class="btn" onclick="sendCommand('disarm', this)">Disarm</button>
+
+    <p id="status">Ready</p>
+
+    <div class="info-box">
+        <h3>Drone Status</h3>
+        <p id="battery">Battery: ---</p>
+        <p id="position">Position: ---</p>
+    </div>
+
+    <h3>Position of the Drone</h3>
+    <div id="map"></div>
+
+    <script>
+        var socket = io.connect("http://" + document.domain + ":" + location.port);
+
+        function sendCommand(command, button) {
+            let altitude = document.getElementById("altitude").value * 1000;
+            let latitude = parseFloat(document.getElementById("latitude").value) || 0;
+            let longitude = parseFloat(document.getElementById("longitude").value) || 0;
+            
+            let data = {command: command};
+            
+            if (command === "takeoff") {
+                data.altitude = altitude;
+                data.latitude = latitude;
+                data.longitude = longitude;
+            }
+
+            button.classList.add("loading");
+            document.getElementById("status").innerText = `Sending ${command}...`;
+            
+            socket.emit("send_command", data);
+            console.log("Command sent:", data);
+        }
+
+        socket.on("update_status", function(data) {
+            document.getElementById("battery").innerText = `Battery: ${data.battery.voltage}V, ${data.battery.current}A`;
+            document.getElementById("position").innerText = `Position: Lat ${data.position.lat}, Lon ${data.position.lon}, Alt ${data.position.alt}m`;
+            updateMap(data.position.lat, data.position.lon);
+        });
+
+        socket.on("command_result", function(data) {
+            console.log(`Risultato comando ${data.command}: ${data.result}`);
+            document.getElementById("status").innerText = `${data.result}`;
+
+            let buttons = document.querySelectorAll(".btn");
+            buttons.forEach(btn => btn.classList.remove("loading"));
+        });
+
+        var map = L.map("map").setView([47.3977, 8.5456], 17);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+        var marker = L.marker([47.3977, 8.5456]).addTo(map);
+
+        function updateMap(lat, lon) {
+            marker.setLatLng([lat, lon]);
+            map.setView([lat, lon], 17);
+        }
+    </script>
+</body>
+</html>
