@@ -1,5 +1,5 @@
 # WAMP_MAVLink
-This section details the implementation strategy employed in this thesis to establish
+Implementation for establishing
 an effective MAVLink-WAMP bridge, ensuring seamless interoperability between the
 two protocols while preserving the critical performance and security requirements of
 OT environments.
